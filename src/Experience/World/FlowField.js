@@ -16,6 +16,7 @@ import {
 } from "three/tsl";
 
 import Experience from "../Experience";
+import { simplexNoise4d } from "../Shaders/simplexNoise4d";
 
 export default class FlowField {
   constructor() {
@@ -112,19 +113,19 @@ export default class FlowField {
 
       // strength
       const remapedInfluence = this.influence.remap(0, 1, 1, -1);
-      const strength = mx_noise_float(
+      const strength = simplexNoise4d(
         vec4(basePosition.add(0).mul(this.flowFieldPositionFrequency), time)
       ).smoothstep(remapedInfluence, 1);
 
       // Flowfield
       const flowfield = vec3(
-        mx_noise_float(
+        simplexNoise4d(
           vec4(position.add(0).mul(this.flowFieldPositionFrequency), time)
         ),
-        mx_noise_float(
+        simplexNoise4d(
           vec4(position.add(1).mul(this.flowFieldPositionFrequency), time)
         ),
-        mx_noise_float(
+        simplexNoise4d(
           vec4(position.add(2).mul(this.flowFieldPositionFrequency), time)
         )
       ).normalize();
