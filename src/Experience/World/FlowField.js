@@ -9,7 +9,6 @@ import {
   hash,
   time,
   deltaTime,
-  mx_noise_float,
   vec4,
   If,
   uv,
@@ -32,10 +31,10 @@ export default class FlowField {
     this.options = {};
 
     // Uniforms
-    this.size = uniform(0.07);
+    this.size = uniform(0.05);
     this.influence = uniform(0.5);
     this.flowFieldStrength = uniform(2);
-    this.flowFieldPositionFrequency = uniform(0.2);
+    this.flowFieldPositionFrequency = uniform(0.5);
     this.flowFieldTimeFrequency = uniform(0.3);
     this.decayFrequency = uniform(0.2);
 
@@ -104,7 +103,8 @@ export default class FlowField {
 
     const update = Fn(() => {
       // Setup
-      const delta = deltaTime.mul(this.flowFieldTimeFrequency);
+      const elapsedTime = time.mul(0.2);
+      const delta = deltaTime;
 
       // Buffers
       const basePosition = basePositionBuffer.element(instanceIndex);
@@ -114,19 +114,31 @@ export default class FlowField {
       // strength
       const remapedInfluence = this.influence.remap(0, 1, 1, -1);
       const strength = simplexNoise4d(
-        vec4(basePosition.add(0).mul(this.flowFieldPositionFrequency), time)
+        vec4(
+          basePosition.add(0).mul(this.flowFieldPositionFrequency),
+          elapsedTime
+        )
       ).smoothstep(remapedInfluence, 1);
 
       // Flowfield
       const flowfield = vec3(
         simplexNoise4d(
-          vec4(position.add(0).mul(this.flowFieldPositionFrequency), time)
+          vec4(
+            position.add(0).mul(this.flowFieldPositionFrequency),
+            elapsedTime
+          )
         ),
         simplexNoise4d(
-          vec4(position.add(1).mul(this.flowFieldPositionFrequency), time)
+          vec4(
+            position.add(1).mul(this.flowFieldPositionFrequency),
+            elapsedTime
+          )
         ),
         simplexNoise4d(
-          vec4(position.add(2).mul(this.flowFieldPositionFrequency), time)
+          vec4(
+            position.add(2).mul(this.flowFieldPositionFrequency),
+            elapsedTime
+          )
         )
       ).normalize();
 
@@ -135,7 +147,7 @@ export default class FlowField {
       );
 
       // Life
-      const newLife = life.add(delta.mul(this.decayFrequency));
+      const newLife = life.add(deltaTime.mul(this.decayFrequency));
       If(newLife.greaterThan(1), () => {
         position.assign(basePosition);
       });
