@@ -26,9 +26,19 @@ export default class FlowField {
     this.debug = this.experience.debug;
 
     this.boatModel = this.experience.resources.items.boatModel;
+    this.churchModel = this.experience.resources.items.churchModel;
 
-    // Options
-    this.options = {};
+    // Get initial model from URL hash
+    const hash = window.location.hash.replace("#", "");
+    const initialModel = hash === "church" ? "church" : "boat";
+
+    this.activeModel =
+      initialModel === "boat" ? this.boatModel : this.churchModel;
+
+    this.options = {
+      model: initialModel,
+      colorItemSize: initialModel === "boat" ? 4 : 3, // color is rgba for boat and rgb for church
+    };
 
     // Uniforms
     this.size = uniform(0.05);
@@ -47,7 +57,7 @@ export default class FlowField {
 
   setFlowField() {
     const baseGeometry = {};
-    baseGeometry.instance = this.boatModel.scene.children[0].geometry;
+    baseGeometry.instance = this.activeModel.scene.children[0].geometry;
     baseGeometry.positionAttribute = baseGeometry.instance.attributes.position;
     baseGeometry.colorAttribute = baseGeometry.instance.attributes.color;
     baseGeometry.count = baseGeometry.instance.attributes.position.count;
@@ -65,7 +75,7 @@ export default class FlowField {
     const colorBuffer = storage(
       new THREE.StorageInstancedBufferAttribute(
         baseGeometry.colorAttribute.array,
-        4
+        this.options.colorItemSize
       ),
       "vec3",
       baseGeometry.count
@@ -193,6 +203,22 @@ export default class FlowField {
       const debugFolder = this.debug.ui.addFolder({
         title: "Particles",
       });
+
+      debugFolder
+        .addBinding(this.options, "model", {
+          label: "Model",
+          options: {
+            Boat: "boat",
+            Church: "church",
+          },
+        })
+        .on("change", (ev) => {
+          this.options.model = ev.value;
+          this.activeModel =
+            ev.value === "boat" ? this.boatModel : this.churchModel;
+          window.location.hash = ev.value;
+          window.location.reload();
+        });
 
       debugFolder.addBinding(this.size, "value", {
         label: "Size",
