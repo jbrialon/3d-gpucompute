@@ -12,8 +12,8 @@ export default class World {
     // this.loader = new Loader();
     this.resources.on("ready", () => {
       // Setup
-      // this.flowfield = new FlowField();
-      this.curlnoise = new CurlNoise();
+      this.flowfield = new FlowField();
+      // this.curlnoise = new CurlNoise();
       // this.loader.hideLoader();
     });
   }

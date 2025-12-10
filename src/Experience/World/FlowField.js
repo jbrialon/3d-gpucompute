@@ -15,7 +15,7 @@ import {
 } from "three/tsl";
 
 import Experience from "../Experience";
-import { simplexNoise4d } from "../Shaders/simplexNoise4d";
+import { snoise as simplexNoise4d } from "../Shaders/simplexNoise4d";
 
 export default class FlowField {
   constructor() {

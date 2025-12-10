@@ -13,13 +13,14 @@ import {
   mix,
   sin,
   float,
+  int,
   modelViewMatrix,
+  texture,
 } from "three/tsl";
 
 import Experience from "../Experience";
 import { curlNoise } from "../Shaders/curlNoise";
-import { simplexNoise3d } from "../Shaders/simplexNoise3d";
-import { simplexNoise4d } from "../Shaders/simplexNoise4d";
+import { snoise } from "../Shaders/simplexNoise3d";
 
 export default class CurlNoise {
   constructor() {
@@ -31,8 +32,8 @@ export default class CurlNoise {
 
     // Options
     this.options = {
-      size: 256,
-      sphereRadius: 2,
+      size: 256, // 256 but whatever actually here
+      sphereRadius: 1, // 2 if we add to initial pos
     };
 
     // Uniforms
@@ -93,16 +94,22 @@ export default class CurlNoise {
     );
     baseGeometry.positionAttribute = baseGeometry.instance.attributes.position;
     baseGeometry.count = baseGeometry.instance.attributes.position.count;
-    const material = new THREE.SpriteNodeMaterial();
 
+    const material = new THREE.SpriteNodeMaterial();
     const basePositionBuffer = storage(
-      new THREE.StorageInstancedBufferAttribute(positions, 3),
+      new THREE.StorageInstancedBufferAttribute(
+        baseGeometry.positionAttribute.array,
+        3
+      ),
       "vec3",
       baseGeometry.count
     );
 
     const positionBuffer = storage(
-      new THREE.StorageInstancedBufferAttribute(positions, 3),
+      new THREE.StorageInstancedBufferAttribute(
+        new Float32Array(baseGeometry.count * 3),
+        3
+      ),
       "vec3",
       baseGeometry.count
     );
@@ -120,17 +127,20 @@ export default class CurlNoise {
     const update = Fn(() => {
       // Setup
       const t = time.mul(this.speed);
-
       const position = positionBuffer.element(instanceIndex);
-      const basePos = basePositionBuffer.element(instanceIndex);
+      const basePosition = basePositionBuffer.element(instanceIndex);
 
       // Compute pos
-      const pos = basePos.add(
-        curlNoise(basePos.mul(this.curlFreq).add(t)).mul(this.curlStrength)
+      const pos = vec3(basePosition);
+      pos.assign(
+        pos.add(curlNoise(pos.mul(this.curlFreq).add(t)).mul(this.curlStrength))
       );
 
-      let curlPos = basePos.add(
-        curlNoise(basePos.mul(this.curlFreq).add(t)).mul(this.curlStrength)
+      let curlPos = vec3(basePosition);
+      curlPos.assign(
+        curlPos.add(
+          curlNoise(curlPos.mul(this.curlFreq).add(t)).mul(this.curlStrength)
+        )
       );
 
       curlPos.addAssign(
@@ -151,12 +161,12 @@ export default class CurlNoise {
           .mul(this.curlStrength)
       );
       curlPos.addAssign(
-        curlNoise(curlPos.mul(this.curlFreq).mul(16.0))
+        curlNoise(pos.mul(this.curlFreq).mul(16.0))
           .mul(0.0625)
           .mul(this.curlStrength)
       );
 
-      const mixFactor = simplexNoise3d(pos.add(t));
+      const mixFactor = snoise(pos.add(t));
       const finalPos = mix(pos, curlPos, mixFactor);
       position.assign(finalPos);
     })();
@@ -187,7 +197,7 @@ export default class CurlNoise {
       const focusStep = normalizedIndex.step(stepThreshold);
 
       // return focusStep.mul(vDistance).mul(this.blur).mul(2.0);
-      return this.particleScale.mul(vDistance);
+      return this.particleScale.mul(vDistance).mul(2.0);
     })();
 
     // Mesh
