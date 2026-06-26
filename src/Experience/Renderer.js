@@ -12,7 +12,7 @@ export default class Renderer {
 
     // Options
     this.options = {
-      clearColor: 0x29191f,
+      clearColor: 0x000000,
       toneMapping: THREE.LinearToneMapping,
       toneMappingExposure: 1,
     };

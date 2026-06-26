@@ -16,6 +16,7 @@ import {
   int,
   modelViewMatrix,
   texture,
+  clamp,
 } from "three/tsl";
 
 import Experience from "../Experience";
@@ -37,7 +38,8 @@ export default class CurlNoise {
     };
 
     // Uniforms
-    this.speed = uniform(0.35);
+    // this.speed = uniform(0.35);
+    this.speed = uniform(0.01);
     this.curlStrength = uniform(0.1);
     this.curlFreq = uniform(0.5);
     this.particleScale = uniform(0.003);
@@ -96,6 +98,8 @@ export default class CurlNoise {
     baseGeometry.count = baseGeometry.instance.attributes.position.count;
 
     const material = new THREE.SpriteNodeMaterial();
+    material.transparent = true;
+    material.depthWrite = false;
     const basePositionBuffer = storage(
       new THREE.StorageInstancedBufferAttribute(
         baseGeometry.positionAttribute.array,
@@ -178,7 +182,18 @@ export default class CurlNoise {
 
     // Color
     material.colorNode = Fn(() => {
+      const pos = positionBuffer.element(instanceIndex);
+
+      const distanceFromCenter = pos.length();
       uv().sub(0.5).length().greaterThan(0.5).discard();
+
+      // Normalize distance to see the full range (adjust maxDistance to see different ranges)
+      const maxDistance = 100.0; // Adjust this to see the actual range
+      const normalizedDistance = clamp(
+        distanceFromCenter.div(maxDistance),
+        0.0,
+        1.0
+      );
 
       return vec4(1.0, 1.0, 1.0, 1.0);
     })();
@@ -186,18 +201,25 @@ export default class CurlNoise {
     material.scaleNode = Fn(() => {
       const pos = positionBuffer.element(instanceIndex);
 
-      const mvPosition = modelViewMatrix.mul(vec4(pos, 1.0));
+      // Compute distance from position to scene center (0,0,0)
+      const distanceFromCenter = pos.length();
 
-      const vDistance = this.focus.sub(mvPosition.z.negate()).abs();
+      // Normalize distance to 0-1 range (assuming max distance ~5 with curl displacement)
+      const maxDistance = 1.0;
+      const normalizedDistance = clamp(
+        distanceFromCenter.div(maxDistance),
+        0.0,
+        1.0
+      );
 
-      const normalizedIndex = instanceIndex
-        .toFloat()
-        .div(float(baseGeometry.count));
-      const stepThreshold = float(1.0).sub(float(1.0).div(this.fov));
-      const focusStep = normalizedIndex.step(stepThreshold);
+      // Remap: 0.1x scale when close (dist=0), 10x scale when far (dist=1)
+      const minScale = 0.1;
+      const maxScale = 10.0;
+      const scaleFactor = mix(minScale, maxScale, normalizedDistance).mul(
+        0.001
+      );
 
-      // return focusStep.mul(vDistance).mul(this.blur).mul(2.0);
-      return this.particleScale.mul(vDistance).mul(2.0);
+      return this.particleScale;
     })();
 
     // Mesh
@@ -208,6 +230,16 @@ export default class CurlNoise {
       baseGeometry.count
     );
     this.scene.add(mesh);
+
+    // Add base position visualization (original sphere)
+    const baseMaterial = new THREE.PointsMaterial({
+      color: 0x00ff00,
+      size: 0.01,
+      transparent: true,
+      opacity: 0.5,
+    });
+    const baseMesh = new THREE.Points(baseGeometry.instance, baseMaterial);
+    this.scene.add(baseMesh);
   }
 
   setDebug() {
